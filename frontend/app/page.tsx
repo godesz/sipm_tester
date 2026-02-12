@@ -2,12 +2,18 @@
 
 /**
  * Main page - SiPM Tester Station Control Interface
+ * Complete UI with all Phase 1-4 features
  */
 
 import CameraView from "@/components/Camera/CameraView";
 import MotionControl from "@/components/Controls/MotionControl";
+import CalibrationPanel from "@/components/Controls/CalibrationPanel";
+import EmergencyStop from "@/components/Controls/EmergencyStop";
+import ProbingControl from "@/components/Controls/ProbingControl";
 import ConnectionPanel from "@/components/Hardware/ConnectionPanel";
 import StatusIndicators from "@/components/Hardware/StatusIndicators";
+import LightControl from "@/components/Hardware/LightControl";
+import DetectionResults from "@/components/Detection/DetectionResults";
 import { useHardware } from "@/contexts/HardwareContext";
 
 export default function Home() {
@@ -25,10 +31,11 @@ export default function Home() {
         </p>
       </header>
 
-      {/* Main Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left Column - Camera & Camera Controls */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* Main Layout - 3 Columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        {/* Left Column - Camera & Detection (5 cols) */}
+        <div className="lg:col-span-5 space-y-4">
           {/* Camera View */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex items-center justify-between mb-4">
@@ -60,72 +67,42 @@ export default function Home() {
             <CameraView showOverlay={true} />
           </div>
 
-          {/* Motion Control */}
-          <MotionControl />
+          {/* Detection Results */}
+          <DetectionResults />
         </div>
 
-        {/* Right Column - Status & Connection */}
-        <div className="space-y-4">
+        {/* Middle Column - Controls (4 cols) */}
+        <div className="lg:col-span-4 space-y-4">
+          {/* Motion Control */}
+          <MotionControl />
+
+          {/* Calibration Panel */}
+          <CalibrationPanel />
+
+          {/* Testing & Probing */}
+          <ProbingControl />
+        </div>
+
+        {/* Right Column - Status & Hardware (3 cols) */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Emergency Stop */}
+          <EmergencyStop />
+
           {/* Connection Panel */}
           <ConnectionPanel />
 
           {/* Status Indicators */}
           <StatusIndicators />
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h3 className="text-lg font-bold mb-3">Quick Actions</h3>
-            <div className="space-y-2">
-              <QuickActionButton
-                label="Test Diode Connection"
-                onClick={() => {
-                  // This will be implemented in Phase 4
-                  alert("Test diode functionality coming in Phase 4!");
-                }}
-              />
-              <QuickActionButton
-                label="Set Reference Point"
-                onClick={() => {
-                  // This will be implemented in Phase 4
-                  alert("Calibration features coming in Phase 4!");
-                }}
-              />
-              <QuickActionButton
-                label="Set Camera Offset"
-                onClick={() => {
-                  // This will be implemented in Phase 4
-                  alert("Calibration features coming in Phase 4!");
-                }}
-              />
-            </div>
-          </div>
+          {/* Light Control */}
+          <LightControl />
         </div>
       </div>
 
       {/* Footer */}
       <footer className="mt-6 text-center text-sm text-gray-500">
-        SiPM Tester Station v1.0 | Phase 3 Complete
+        SiPM Tester Station v1.0 | Phase 4 Complete ✨
       </footer>
     </div>
-  );
-}
-
-/**
- * Quick action button component
- */
-function QuickActionButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700 transition-colors"
-    >
-      {label}
-    </button>
   );
 }
