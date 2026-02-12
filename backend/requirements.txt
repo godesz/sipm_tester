@@ -1,0 +1,15 @@
+# FastAPI and server
+fastapi==0.115.0
+uvicorn[standard]==0.31.0
+python-multipart==0.0.12
+
+# OpenCV for camera and image processing
+opencv-python==4.10.0.84
+numpy==2.1.0
+
+# Serial communication
+pyserial==3.5
+
+# Data validation
+pydantic==2.9.0
+pydantic-settings==2.5.0

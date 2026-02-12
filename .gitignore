@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project specific
+backend/captures/
+backend/config/station_config.json
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
