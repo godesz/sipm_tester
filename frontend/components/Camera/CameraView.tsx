@@ -17,9 +17,10 @@ interface CameraViewProps {
 }
 
 export default function CameraView({ showOverlay = true, className = "" }: CameraViewProps) {
-  const { camera, marlin } = useHardware();
+  const { camera, marlin, listCameras, setCurrentCamera } = useHardware();
   const { config } = useConfig();
   const [imageError, setImageError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const streamUrl = api.camera.getStreamURL(camera.currentCamera);
@@ -29,8 +30,88 @@ export default function CameraView({ showOverlay = true, className = "" }: Camer
     setImageError(false);
   }, [camera.currentCamera]);
 
+  // Load available cameras on mount
+  useEffect(() => {
+    listCameras();
+  }, [listCameras]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setImageError(false);
+    await listCameras();
+    // Force image reload by adding timestamp
+    if (imgRef.current) {
+      imgRef.current.src = streamUrl + `&t=${Date.now()}`;
+    }
+    setTimeout(() => setRefreshing(false), 1000);
+  };
+
+  const handleCameraChange = async (cameraId: number) => {
+    setImageError(false);
+    try {
+      await setCurrentCamera(cameraId);
+    } catch (error) {
+      console.error("Camera switch failed:", error);
+      setImageError(true);
+    }
+  };
+
   return (
     <div className={`relative bg-gray-900 rounded-lg overflow-hidden ${className}`}>
+      {/* Camera Controls Bar */}
+      <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-20">
+        {/* Camera Selector */}
+        <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded px-2 py-1">
+          <label className="text-white text-xs font-medium">Camera:</label>
+          <select
+            value={camera.currentCamera}
+            onChange={(e) => handleCameraChange(parseInt(e.target.value))}
+            className="bg-gray-800 text-white text-xs rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500"
+          >
+            {camera.availableCameras.length > 0 ? (
+              camera.availableCameras.map((id) => (
+                <option key={id} value={id}>
+                  Camera {id}
+                </option>
+              ))
+            ) : (
+              [0, 1, 2, 3].map((id) => (
+                <option key={id} value={id}>
+                  Camera {id}
+                </option>
+              ))
+            )}
+          </select>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="text-white hover:text-blue-400 transition-colors disabled:opacity-50"
+            title="Refresh camera list and reconnect"
+          >
+            <svg
+              className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Detection Count Badge */}
+        {camera.detections.length > 0 && (
+          <div className="bg-green-500/80 text-white text-xs px-2 py-1 rounded">
+            {camera.detections.length} detection{camera.detections.length !== 1 ? "s" : ""}
+          </div>
+        )}
+      </div>
+
       {/* Video Stream */}
       <div
         className="relative"
@@ -45,7 +126,7 @@ export default function CameraView({ showOverlay = true, className = "" }: Camer
               ref={imgRef}
               src={streamUrl}
               alt="Camera stream"
-              className="w-full h-full object-contain"
+              className="w-auto h-full object-cover"
               onError={() => setImageError(true)}
             />
 
@@ -82,18 +163,6 @@ export default function CameraView({ showOverlay = true, className = "" }: Camer
           </div>
         )}
       </div>
-
-      {/* Camera Info Badge */}
-      <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-        Camera {camera.currentCamera}
-      </div>
-
-      {/* Detection Count Badge */}
-      {camera.detections.length > 0 && (
-        <div className="absolute top-2 right-2 bg-green-500/80 text-white text-xs px-2 py-1 rounded">
-          {camera.detections.length} detection{camera.detections.length !== 1 ? "s" : ""}
-        </div>
-      )}
 
       {/* Detecting Indicator */}
       {camera.detecting && (

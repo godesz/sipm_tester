@@ -55,7 +55,7 @@ interface HardwareContextType {
 
   // Camera actions
   listCameras: () => Promise<void>;
-  setCurrentCamera: (id: number) => void;
+  setCurrentCamera: (id: number) => Promise<void>;
   captureImage: () => Promise<void>;
   detectSiPMs: () => Promise<void>;
   clearDetections: () => void;
@@ -214,9 +214,23 @@ export function HardwareProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const setCurrentCamera = useCallback((id: number) => {
-    setCamera(prev => ({ ...prev, currentCamera: id }));
-  }, []);
+  const setCurrentCamera = useCallback(async (id: number) => {
+    try {
+      const oldCamera = camera.currentCamera;
+
+      // Call backend to properly close old camera before opening new one
+      if (oldCamera !== id) {
+        await api.camera.switchCamera(oldCamera, id);
+      }
+
+      setCamera(prev => ({ ...prev, currentCamera: id, error: null }));
+    } catch (error) {
+      setCamera(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Camera switch failed"
+      }));
+    }
+  }, [camera.currentCamera]);
 
   const captureImage = useCallback(async () => {
     try {

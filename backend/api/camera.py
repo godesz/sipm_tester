@@ -93,3 +93,23 @@ async def get_status():
         return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/switch")
+async def switch_camera(
+    old_camera_id: int = Query(..., description="Current camera ID"),
+    new_camera_id: int = Query(..., description="New camera ID")
+):
+    """
+    Switch from one camera to another.
+    Properly closes old camera before opening new one.
+    """
+    try:
+        result = camera.switch_camera(old_camera_id, new_camera_id)
+
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
