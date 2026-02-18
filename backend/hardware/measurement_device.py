@@ -56,7 +56,12 @@ class MeasurementDevice(HardwareDevice):
                 time.sleep(0.5)  # Wait for device to initialize
                 self.connected = True
                 print(f"Measurement device connected on {port}")
-                return True
+
+            # Auto-enable PSU (required before any commands)
+            self.enable_psu()
+            print("PSU auto-enabled on connect")
+
+            return True
         except Exception as e:
             print(f"Failed to connect to measurement device on {port}: {e}")
             self.connected = False

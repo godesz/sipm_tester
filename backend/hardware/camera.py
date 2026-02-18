@@ -101,22 +101,32 @@ class CameraManager(HardwareDevice):
         except Exception as e:
             return {"error": str(e)}
 
-    def list_cameras(self, max_devices: int = 10) -> List[int]:
+    def list_cameras(self, max_devices: int = 4) -> List[int]:
         """
         List available camera indexes.
+        Skips cameras that are already open to avoid conflicts.
 
         Args:
-            max_devices: Maximum number of devices to check (default: 10)
+            max_devices: Maximum number of devices to check (default: 4)
 
         Returns:
             List of available camera indexes
         """
         available = []
         for i in range(max_devices):
-            cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)  # CAP_DSHOW avoids warnings on Windows
-            if cap is not None and cap.isOpened():
+            # If camera is already open and working, it's available
+            if i in self.cameras and self.cameras[i].isOpened():
                 available.append(i)
-                cap.release()
+                continue
+
+            # Try to open camera to check availability
+            try:
+                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                if cap is not None and cap.isOpened():
+                    available.append(i)
+                    cap.release()
+            except Exception:
+                pass
         return available
 
     def open_camera(self, camera_id: int, high_res: bool = False) -> cv2.VideoCapture:
