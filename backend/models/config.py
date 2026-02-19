@@ -58,16 +58,28 @@ class CalibrationData(BaseModel):
 
 
 class DetectionConfig(BaseModel):
-    """OpenCV detection parameters."""
+    """OpenCV detection parameters for bright pad detection under colored lighting."""
+    # Brightness-based detection (primary method for white/bright pads)
+    brightness_threshold: int = Field(default=200, description="Min brightness (V channel, 0-255)")
+    saturation_max: int = Field(default=100, description="Max saturation for bright pads (S channel, 0-255)")
+    # Optional yellow hue range (secondary, for slightly colored pads)
     yellow_hsv_range: Dict[str, List[int]] = Field(
         default={
-            "lower": [20, 100, 100],
-            "upper": [40, 255, 255]
+            "lower": [10, 30, 180],
+            "upper": [50, 200, 255]
         },
-        description="HSV range for yellow color detection"
+        description="HSV range for yellowish pad detection"
     )
-    min_pad_area: int = Field(default=100, description="Minimum pad area in pixels")
-    max_pad_area: int = Field(default=10000, description="Maximum pad area in pixels")
+    use_yellow_detection: bool = Field(default=True, description="Also detect yellowish pads")
+    # Area filters
+    min_pad_area: int = Field(default=50, description="Minimum pad area in pixels")
+    max_pad_area: int = Field(default=5000, description="Maximum pad area in pixels")
+    # Pad size filter (post-detection)
+    expected_pad_size: int = Field(default=60, description="Expected pad size in pixels (width & height)")
+    pad_size_tolerance: float = Field(default=0.4, description="Size tolerance as fraction (0.4 = ±40%, so 36-84 px)")
+    max_aspect_ratio: float = Field(default=1.5, description="Max aspect ratio (1.0 = perfect square)")
+    # Debug
+    save_debug_image: bool = Field(default=True, description="Save debug image with detections")
 
 
 class ProbingConfig(BaseModel):

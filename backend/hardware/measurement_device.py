@@ -35,14 +35,14 @@ class MeasurementDevice(HardwareDevice):
         self.ser: Optional[serial.Serial] = None
         self.psu_enabled = False
 
-    def connect(self, port: str = "COM5", baudrate: int = 115200, timeout: float = 1.0) -> bool:
+    def connect(self, port: str = "COM5", baudrate: int = 115200, timeout: float = 5.0) -> bool:
         """
         Connect to measurement device via serial port.
 
         Args:
             port: COM port (default: COM5)
             baudrate: Communication baudrate (default: 115200)
-            timeout: Serial timeout in seconds (default: 1.0)
+            timeout: Serial timeout in seconds (default: 5.0)
 
         Returns:
             bool: True if connection successful
@@ -53,7 +53,7 @@ class MeasurementDevice(HardwareDevice):
                     return True
 
                 self.ser = serial.Serial(port, baudrate, timeout=timeout)
-                time.sleep(0.5)  # Wait for device to initialize
+                time.sleep(3.0)  # Wait for device to initialize
                 self.connected = True
                 print(f"Measurement device connected on {port}")
 
@@ -106,13 +106,26 @@ class MeasurementDevice(HardwareDevice):
         self._ensure_connected()
 
         with self.lock:
-            cmd = cmd.strip() + "\n"
-            self.ser.write(cmd.encode("utf-8"))
+            # Flush any leftover data in input buffer
+            self.ser.reset_input_buffer()
+
+            # Send command with \n\r (same as PuTTY Enter key)
+            cmd_str = cmd.strip() + "\n\r"
+            self.ser.write(cmd_str.encode("utf-8"))
             self.ser.flush()
             print(f">> {cmd.strip()}")
 
-            # Read response
+            # Small delay to let the device process
+            time.sleep(0.1)
+
+            # Read response - try readline first, fall back to reading available bytes
             response = self.ser.readline().decode(errors="ignore").strip()
+
+            # If readline got nothing, try reading whatever is in the buffer
+            if not response and self.ser.in_waiting > 0:
+                raw = self.ser.read(self.ser.in_waiting)
+                response = raw.decode(errors="ignore").strip()
+
             print(f"<< {response}")
 
             return response
@@ -125,6 +138,8 @@ class MeasurementDevice(HardwareDevice):
             Dict with status
         """
         try:
+            response = self._send_command("")
+
             response = self._send_command("enable_A_psu,0")
             self.psu_enabled = True
             return {"status": "ok", "response": response}
