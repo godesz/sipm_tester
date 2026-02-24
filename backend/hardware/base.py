@@ -14,7 +14,7 @@ class HardwareDevice(ABC):
 
     def __init__(self):
         self.connected = False
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
 
     @abstractmethod
     def connect(self, **kwargs) -> bool:

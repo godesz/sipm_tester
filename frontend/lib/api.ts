@@ -106,6 +106,18 @@ export const motionAPI = {
     fetchAPI(API_ENDPOINTS.MOTION_CLEAR_EMERGENCY_STOP, { method: "POST" }),
 
   /**
+   * Save current position as tray reference point.
+   */
+  setReference: (): Promise<{ status: string; reference_point: { x: number; y: number; z: number } }> =>
+    fetchAPI(API_ENDPOINTS.MOTION_SET_REFERENCE, { method: "POST" }),
+
+  /**
+   * Move to saved tray reference point.
+   */
+  goReference: (): Promise<{ status: string; position: { X: number; Y: number; Z: number } }> =>
+    fetchAPI(API_ENDPOINTS.MOTION_GO_REFERENCE, { method: "POST" }),
+
+  /**
    * Get Marlin controller status.
    */
   getStatus: (): Promise<StatusResponse> =>

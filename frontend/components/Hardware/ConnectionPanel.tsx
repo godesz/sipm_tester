@@ -49,7 +49,7 @@ export default function ConnectionPanel() {
             type="text"
             value={marlinPort}
             onChange={(e) => setMarlinPort(e.target.value)}
-            placeholder="COM3"
+            placeholder="COM4"
             disabled={marlin.connected || marlin.connecting}
             className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
           />

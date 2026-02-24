@@ -17,6 +17,8 @@ export const API_ENDPOINTS = {
   MOTION_HOME: "/api/motion/home",
   MOTION_EMERGENCY_STOP: "/api/motion/emergency_stop",
   MOTION_CLEAR_EMERGENCY_STOP: "/api/motion/clear_emergency_stop",
+  MOTION_SET_REFERENCE: "/api/motion/set_reference",
+  MOTION_GO_REFERENCE: "/api/motion/go_reference",
   MOTION_STATUS: "/api/motion/status",
 
   // Camera endpoints
@@ -51,7 +53,7 @@ export const API_ENDPOINTS = {
 // ============================================================================
 
 export const DEFAULT_PORTS = {
-  MARLIN: "COM3",
+  MARLIN: "COM4",
   MEASUREMENT: "COM5",
 } as const;
 

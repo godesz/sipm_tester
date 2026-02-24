@@ -21,17 +21,17 @@ class MarlinController(HardwareDevice):
         self.position: Dict[str, float] = {"X": 0.0, "Y": 0.0, "Z": 0.0}
         self.emergency_stop: bool = False
         self.bounds: Dict[str, Dict[str, float]] = {
-            "X": {"min": 0, "max": 300},
-            "Y": {"min": 0, "max": 300},
-            "Z": {"min": 40, "max": 50}  # Z: 40mm safe minimum, 50mm max (endstop at top Z0)
+            "X": {"min": 0, "max": 500},
+            "Y": {"min": 0, "max": 500},
+            "Z": {"min": 0, "max": 50}
         }
 
-    def connect(self, port: str = "COM3", baudrate: int = 115200, timeout: float = 0.2) -> bool:
+    def connect(self, port: str = "COM4", baudrate: int = 115200, timeout: float = 0.2) -> bool:
         """
         Connect to Marlin controller via serial port.
 
         Args:
-            port: COM port (default: COM3)
+            port: COM port (default: COM4)
             baudrate: Communication baudrate (default: 115200)
             timeout: Serial timeout in seconds (default: 0.2)
 
@@ -45,6 +45,7 @@ class MarlinController(HardwareDevice):
 
                 self.ser = serial.Serial(port, baudrate, timeout=timeout)
                 time.sleep(2)  # Wait for Marlin to initialize
+                self.ser.reset_input_buffer()  # Flush Marlin startup messages
                 self.connected = True
                 print(f"Marlin connected on {port}")
 
@@ -112,16 +113,23 @@ class MarlinController(HardwareDevice):
         self._ensure_connected()
 
         with self.lock:
+            self.ser.reset_input_buffer()
             self.send_gcode("M114")
-            line = self.read_line()
-            print(f"<< {line}")
 
-            # Parse response: "X:10.00 Y:20.00 Z:5.00 ..."
-            match = re.findall(r"([XYZ])\s*:\s*(-?\d+\.?\d*)", line)
-            pos = {axis: float(val) for axis, val in match}
-
-            if pos:
-                self.position.update(pos)
+            # Read up to 20 lines looking for the position response
+            for _ in range(20):
+                line = self.read_line()
+                if not line:
+                    continue
+                print(f"<< {line}")
+                # Strip encoder counts section (e.g. "Count X:3200 Y:0 Z:0")
+                # to avoid overwriting real positions with step counts
+                line_pos = line.split("Count")[0]
+                match = re.findall(r"([XYZ])\s*:\s*(-?\d+\.?\d*)", line_pos)
+                if match:
+                    pos = {axis: float(val) for axis, val in match}
+                    self.position.update(pos)
+                    break
 
             return self.position
 
@@ -189,8 +197,46 @@ class MarlinController(HardwareDevice):
             raise RuntimeError("Emergency stop is active! Clear it before homing.")
 
         with self.lock:
-            self.send_gcode("G28")
-            time.sleep(2)  # Wait for homing to complete
+            self.send_gcode("G28 X Y")  # Z excluded (motor disconnected)
+            time.sleep(5)  # Wait for homing to complete
+            pos = self.query_position()
+
+        return pos
+
+    def move_to_absolute(self, x: float = None, y: float = None, z: float = None, feedrate: int = 5000) -> Dict[str, float]:
+        """
+        Move to an absolute position (X, Y, Z).
+
+        Args:
+            x, y, z: Target coordinates in mm (None = don't move that axis)
+            feedrate: Movement speed in mm/min
+
+        Returns:
+            Dict with new position
+        """
+        self._ensure_connected()
+
+        if self.emergency_stop:
+            raise RuntimeError("Emergency stop is active! Clear it before moving.")
+
+        cmd_parts = []
+        for axis, val in [("X", x), ("Y", y), ("Z", z)]:
+            if val is None:
+                continue
+            if val < self.bounds[axis]["min"] or val > self.bounds[axis]["max"]:
+                raise ValueError(
+                    f"Position would exceed {axis} bounds "
+                    f"({self.bounds[axis]['min']:.1f} to {self.bounds[axis]['max']:.1f}mm). "
+                    f"Requested: {val:.1f}mm"
+                )
+            cmd_parts.append(f"{axis}{val:.3f}")
+
+        if not cmd_parts:
+            return self.position
+
+        with self.lock:
+            self.send_gcode("G90")  # Absolute positioning
+            self.send_gcode(f"G0 {' '.join(cmd_parts)} F{feedrate}")
             pos = self.query_position()
 
         return pos

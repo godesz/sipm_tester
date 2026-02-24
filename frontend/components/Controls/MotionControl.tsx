@@ -8,11 +8,13 @@
 import React, { useState } from "react";
 import { useHardware } from "@/contexts/HardwareContext";
 import { MOVEMENT_STEPS } from "@/lib/constants";
+import { motionAPI } from "@/lib/api";
 
 export default function MotionControl() {
   const { marlin, move, home } = useHardware();
   const [step, setStep] = useState<number>(MOVEMENT_STEPS.MEDIUM);
   const [moving, setMoving] = useState(false);
+  const [refPoint, setRefPoint] = useState<{ x: number; y: number; z: number } | null>(null);
 
   const handleMove = async (axis: string, distance: number) => {
     if (marlin.emergencyStop) {
@@ -25,6 +27,40 @@ export default function MotionControl() {
       await move(axis, distance);
     } catch (error) {
       console.error("Move failed:", error);
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  const handleSetReference = async () => {
+    setMoving(true);
+    try {
+      const result = await motionAPI.setReference();
+      setRefPoint(result.reference_point);
+      alert(`Reference point saved: X=${result.reference_point.x.toFixed(2)}, Y=${result.reference_point.y.toFixed(2)}`);
+    } catch (error) {
+      console.error("Set reference failed:", error);
+      alert("Failed to set reference point");
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  const handleGoReference = async () => {
+    if (!refPoint) {
+      alert("No reference point set yet. Use SET REF first.");
+      return;
+    }
+    if (marlin.emergencyStop) {
+      alert("Emergency stop is active! Clear it first.");
+      return;
+    }
+    setMoving(true);
+    try {
+      await motionAPI.goReference();
+    } catch (error) {
+      console.error("Go reference failed:", error);
+      alert(`Failed to go to reference: ${error instanceof Error ? error.message : error}`);
     } finally {
       setMoving(false);
     }
@@ -175,6 +211,41 @@ export default function MotionControl() {
       >
         🏠 Home All Axes
       </button>
+
+      {/* Reference Point Buttons */}
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={handleSetReference}
+          disabled={disabled}
+          className={`flex-1 px-4 py-2 rounded font-semibold transition-colors ${
+            disabled
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-green-500 text-white hover:bg-green-600 active:bg-green-700"
+          }`}
+          title="Save current position as tray reference"
+        >
+          📍 SET REF
+        </button>
+        <button
+          onClick={handleGoReference}
+          disabled={disabled || !refPoint}
+          className={`flex-1 px-4 py-2 rounded font-semibold transition-colors ${
+            disabled || !refPoint
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700"
+          }`}
+          title={refPoint ? `Go to reference: X=${refPoint.x.toFixed(1)}, Y=${refPoint.y.toFixed(1)}` : "No reference set"}
+        >
+          ➡ GO REF
+        </button>
+      </div>
+
+      {/* Reference Point Display */}
+      {refPoint && (
+        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+          Reference: X={refPoint.x.toFixed(2)}  Y={refPoint.y.toFixed(2)}  Z={refPoint.z.toFixed(2)}
+        </div>
+      )}
 
       {/* Status Messages */}
       {marlin.emergencyStop && (

@@ -42,11 +42,11 @@ const DEFAULT_CONFIG: StationConfig = {
   version: "1.0",
   hardware: {
     marlin: {
-      port: "COM3",
+      port: "COM4",
       baudrate: 115200,
       bounds: {
-        X: { min: 0, max: 300 },
-        Y: { min: 0, max: 300 },
+        X: { min: 0, max: 500 },
+        Y: { min: 0, max: 500 },
         Z: { min: 40, max: 50 },
       },
     },
@@ -181,7 +181,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   }, [config]);
 
   const getMarlinPort = useCallback(() => {
-    return config?.hardware.marlin.port || "COM3";
+    return config?.hardware.marlin.port || "COM4";
   }, [config]);
 
   const getMeasurementPort = useCallback(() => {

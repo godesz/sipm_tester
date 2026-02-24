@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 
 class MarlinConfig(BaseModel):
     """Marlin controller configuration."""
-    port: str = Field(default="COM3", description="COM port")
+    port: str = Field(default="COM4", description="COM port")
     baudrate: int = Field(default=115200, description="Serial baudrate")
     bounds: Dict[str, Dict[str, float]] = Field(
         default={

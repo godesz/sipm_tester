@@ -180,7 +180,7 @@ def video_feed(camera_id: int = Query(0, description="Camera index")):
 @app.post("/connect_light")
 async def connect_light(data: dict):
     global ser_light
-    port = data["port"]  # "COM3"
+    port = data["port"]  # "COM5"
     try:
         ser_light = serial.Serial(port, 115200, timeout=1)
         return {"status": "connected", "port": port}
