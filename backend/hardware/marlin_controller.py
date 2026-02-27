@@ -51,6 +51,11 @@ class MarlinController(HardwareDevice):
 
                 # Query initial position
                 self.query_position()
+
+                # Query motor currents and set Z to 200mA for new NEMA11 motor.
+                # M906 is RAM-only — not saved to EEPROM — so must be set on every connect.
+                self._configure_motor_currents()
+
                 return True
         except Exception as e:
             print(f"Failed to connect to Marlin on {port}: {e}")
@@ -240,6 +245,39 @@ class MarlinController(HardwareDevice):
             pos = self.query_position()
 
         return pos
+
+    def _configure_motor_currents(self):
+        """
+        Query and log motor currents (M906), then set Z to 200mA.
+
+        The Z motor was replaced with a smaller NEMA11 (same as I/J axes).
+        Original Z current was 800mA; the new motor requires 200mA.
+
+        NOTE: M906 only sets current in RAM — it is NOT stored in EEPROM.
+              This must be called on every connect (or send M500 after to persist).
+        """
+        with self.lock:
+            # Query all motor currents
+            self.send_gcode("M906")
+            print("Motor currents (M906 report):")
+            for _ in range(15):
+                line = self.read_line()
+                if not line:
+                    continue
+                print(f"<< {line}")
+                if line.lower().startswith("ok"):
+                    break
+
+            # Set Z motor current to 200mA (new NEMA11, same as I/J axes)
+            self.send_gcode("M906 Z200")
+            for _ in range(5):
+                line = self.read_line()
+                if not line:
+                    continue
+                print(f"<< {line}")
+                if line.lower().startswith("ok"):
+                    break
+            print("Z motor current set to 200mA (RAM only — applied on every connect)")
 
     def set_bounds(self, axis: str, min_val: float, max_val: float):
         """
