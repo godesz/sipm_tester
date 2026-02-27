@@ -5,16 +5,36 @@
  * Provides buttons for moving axes and homing.
  */
 
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useHardware } from "@/contexts/HardwareContext";
 import { MOVEMENT_STEPS } from "@/lib/constants";
-import { motionAPI } from "@/lib/api";
+import { motionAPI, configAPI } from "@/lib/api";
 
 export default function MotionControl() {
   const { marlin, move, home } = useHardware();
   const [step, setStep] = useState<number>(MOVEMENT_STEPS.MEDIUM);
   const [moving, setMoving] = useState(false);
   const [refPoint, setRefPoint] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [sipmCol, setSipmCol] = useState(0);
+  const [sipmRow, setSipmRow] = useState(0);
+
+  // Load saved reference point from config on mount
+  useEffect(() => {
+    configAPI.getConfig().then((cfg) => {
+      const ref = cfg.calibration.reference_point;
+      if (ref.x !== 0 || ref.y !== 0) {
+        setRefPoint({ x: ref.x, y: ref.y, z: ref.z ?? 0 });
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleReloadConfig = async () => {
+    try {
+      await configAPI.reload();
+    } catch (error) {
+      alert(`Failed to reload config: ${error instanceof Error ? error.message : error}`);
+    }
+  };
 
   const handleMove = async (axis: string, distance: number) => {
     if (marlin.emergencyStop) {
@@ -32,8 +52,28 @@ export default function MotionControl() {
     }
   };
 
-  const handleSetReference = async () => {
+  const handleGoSipm = async () => {
+    if (marlin.emergencyStop) {
+      alert("Emergency stop is active! Clear it first.");
+      return;
+    }
     setMoving(true);
+    try {
+      await fetch(`http://localhost:8000/api/motion/go_sipm_rc?col=${sipmCol}&row=${sipmRow}`, { method: "POST" })
+        .then(async (r) => {
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({ detail: r.statusText }));
+            throw new Error(err.detail || `HTTP ${r.status}`);
+          }
+        });
+    } catch (error) {
+      alert(`Failed to go to SiPM (${sipmCol}, ${sipmRow}): ${error instanceof Error ? error.message : error}`);
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  const handleSetReference = async () => {
     try {
       const result = await motionAPI.setReference();
       setRefPoint(result.reference_point);
@@ -41,8 +81,6 @@ export default function MotionControl() {
     } catch (error) {
       console.error("Set reference failed:", error);
       alert("Failed to set reference point");
-    } finally {
-      setMoving(false);
     }
   };
 
@@ -97,7 +135,16 @@ export default function MotionControl() {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
-      <h3 className="text-lg font-bold mb-4">Motion Control</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold">Motion Control</h3>
+        <button
+          onClick={handleReloadConfig}
+          title="Reload config from JSON file"
+          className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+        >
+          ↺ Reload Config
+        </button>
+      </div>
 
       {/* Step Size Selector */}
       <div className="mb-4">
@@ -246,6 +293,41 @@ export default function MotionControl() {
           Reference: X={refPoint.x.toFixed(2)}  Y={refPoint.y.toFixed(2)}  Z={refPoint.z.toFixed(2)}
         </div>
       )}
+
+      {/* SiPM Navigation */}
+      <div className="mt-3">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Go to SiPM (col, row)</label>
+        <div className="flex gap-2 items-center">
+          <input
+            type="number"
+            min={0}
+            value={sipmCol}
+            onChange={(e) => setSipmCol(Number(e.target.value))}
+            className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+            placeholder="col"
+          />
+          <span className="text-gray-400 text-sm">,</span>
+          <input
+            type="number"
+            min={0}
+            value={sipmRow}
+            onChange={(e) => setSipmRow(Number(e.target.value))}
+            className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+            placeholder="row"
+          />
+          <button
+            onClick={handleGoSipm}
+            disabled={disabled}
+            className={`flex-1 px-3 py-1 rounded font-semibold text-sm transition-colors ${
+              disabled
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700"
+            }`}
+          >
+            Go
+          </button>
+        </div>
+      </div>
 
       {/* Status Messages */}
       {marlin.emergencyStop && (

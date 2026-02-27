@@ -28,7 +28,7 @@ class ConfigManager:
         if not hasattr(self, 'initialized'):
             self.config_path = Path(__file__).parent / "config" / "station_config.json"
             self.config: StationConfig = StationConfig()
-            self.access_lock = threading.Lock()
+            self.access_lock = threading.RLock()
             self.initialized = True
 
             # Load config if file exists
@@ -180,6 +180,66 @@ class ConfigManager:
         except Exception as e:
             print(f"Error updating ports: {e}")
             return False
+
+    def update_tray(self, **kwargs) -> bool:
+        """
+        Update tray layout fields (columns, rows, pitch_x, pitch_y).
+        Only provided fields are changed.
+        """
+        try:
+            with self.access_lock:
+                for key, value in kwargs.items():
+                    if value is not None and hasattr(self.config.tray, key):
+                        setattr(self.config.tray, key, value)
+                self.save()
+                print(f"Tray config updated: {kwargs}")
+                return True
+        except Exception as e:
+            print(f"Error updating tray config: {e}")
+            return False
+
+    def set_tray_reference(self, x: float, y: float) -> bool:
+        """Copy the current machine reference point into the tray config."""
+        try:
+            with self.access_lock:
+                self.config.tray.reference_point = {"x": x, "y": y}
+                self.save()
+                print(f"Tray reference set to X={x}, Y={y}")
+                return True
+        except Exception as e:
+            print(f"Error setting tray reference: {e}")
+            return False
+
+    def set_first_sipm(self, x: float, y: float) -> bool:
+        """Save machine coordinates of the first SiPM (index 0)."""
+        try:
+            with self.access_lock:
+                self.config.tray.first_sipm = {"x": x, "y": y}
+                self.save()
+                print(f"First SiPM set to X={x}, Y={y}")
+                return True
+        except Exception as e:
+            print(f"Error setting first SiPM: {e}")
+            return False
+
+    def get_sipm_position(self, index: int) -> dict:
+        """
+        Compute machine coordinates for SiPM at the given 0-based index.
+        Layout: row-major order, X varies first (columns), then Y (rows).
+        """
+        with self.access_lock:
+            tray = self.config.tray
+            total = tray.columns * tray.rows
+            if index < 0 or index >= total:
+                raise ValueError(
+                    f"SiPM index {index} out of range "
+                    f"(tray has {tray.columns}×{tray.rows} = {total} SiPMs)"
+                )
+            col = index % tray.columns
+            row = index // tray.columns
+            x = tray.first_sipm["x"] + col * tray.pitch_x
+            y = tray.first_sipm["y"] + row * tray.pitch_y
+            return {"index": index, "row": row, "col": col, "x": x, "y": y}
 
     def get_marlin_bounds(self):
         """Get Marlin movement bounds."""

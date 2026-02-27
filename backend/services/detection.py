@@ -80,6 +80,9 @@ class SiPMDetector:
         )
 
         # === Filter and extract detections ===
+        img_h, img_w = image.shape[:2]
+        img_cx = img_w / 2
+        img_cy = img_h / 2
         detections = []
         for contour in contours:
             area = cv2.contourArea(contour)
@@ -108,6 +111,12 @@ class SiPMDetector:
             # Calculate center coordinates
             center_x = int(x + w / 2)
             center_y = int(y + h / 2)
+
+            # Filter by distance from image center (removes pads from neighboring SiPMs)
+            if self.config.max_distance_from_center > 0:
+                dist = ((center_x - img_cx) ** 2 + (center_y - img_cy) ** 2) ** 0.5
+                if dist > self.config.max_distance_from_center:
+                    continue
 
             # Calculate confidence based on:
             # - brightness of the pad region (higher = better)

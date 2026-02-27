@@ -160,6 +160,86 @@ def set_reference():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/set_first_sipm")
+def set_first_sipm():
+    """Save current position as the first SiPM location (index 0) in the tray."""
+    try:
+        if not marlin.is_connected():
+            raise HTTPException(status_code=400, detail="Marlin not connected")
+
+        pos = marlin.position
+        config_manager.set_first_sipm(pos["X"], pos["Y"])
+        # Keep tray reference_point in sync with the machine reference
+        ref = config_manager.get_config().calibration.reference_point
+        config_manager.set_tray_reference(ref["x"], ref["y"])
+        result = {"x": pos["X"], "y": pos["Y"]}
+        print(f"First SiPM saved: {result}")
+        return {"status": "ok", "first_sipm": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sipm_position")
+def sipm_position(index: int):
+    """
+    Compute machine coordinates for a SiPM by its 0-based index.
+    Does NOT move the machine — use /move or /go_reference for that.
+    """
+    try:
+        pos = config_manager.get_sipm_position(index)
+        return {"status": "ok", "sipm": pos}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/go_sipm")
+def go_sipm(index: int):
+    """Move to the machine coordinates of SiPM at the given 0-based index."""
+    try:
+        if not marlin.is_connected():
+            raise HTTPException(status_code=400, detail="Marlin not connected")
+
+        pos = config_manager.get_sipm_position(index)
+        new_pos = marlin.move_to_absolute(x=pos["x"], y=pos["y"])
+        return {"status": "ok", "index": index, "position": new_pos}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/go_sipm_rc")
+def go_sipm_rc(col: int, row: int):
+    """Move to SiPM at (col, row) — col is 0-based X index, row is 0-based Y index."""
+    try:
+        if not marlin.is_connected():
+            raise HTTPException(status_code=400, detail="Marlin not connected")
+
+        tray = config_manager.get_config().tray
+        if col < 0 or col >= tray.columns:
+            raise HTTPException(status_code=400, detail=f"Column {col} out of range (0–{tray.columns - 1})")
+        if row < 0 or row >= tray.rows:
+            raise HTTPException(status_code=400, detail=f"Row {row} out of range (0–{tray.rows - 1})")
+
+        index = col + row * tray.columns
+        x = tray.first_sipm["x"] + col * tray.pitch_x
+        y = tray.first_sipm["y"] + row * tray.pitch_y
+        new_pos = marlin.move_to_absolute(x=x, y=y)
+        return {"status": "ok", "col": col, "row": row, "index": index, "position": new_pos}
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/go_reference")
 def go_reference():
     """Move to the saved tray reference point."""

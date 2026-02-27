@@ -2,7 +2,7 @@
 Configuration API endpoints for managing station settings.
 """
 from fastapi import APIRouter, HTTPException
-from models.config import StationConfig, SetReferencePointRequest, SetCameraOffsetRequest, UpdatePortsRequest
+from models.config import StationConfig, SetReferencePointRequest, SetCameraOffsetRequest, UpdatePortsRequest, UpdateTrayRequest
 from config import config_manager
 
 
@@ -77,6 +77,33 @@ async def update_ports(request: UpdatePortsRequest):
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to update ports")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/tray")
+def get_tray():
+    """Get current tray configuration."""
+    try:
+        tray = config_manager.get_config().tray
+        return tray
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tray")
+def update_tray(request: UpdateTrayRequest):
+    """Update tray layout parameters (columns, rows, pitch_x, pitch_y)."""
+    try:
+        success = config_manager.update_tray(
+            columns=request.columns,
+            rows=request.rows,
+            pitch_x=request.pitch_x,
+            pitch_y=request.pitch_y,
+        )
+        if success:
+            return {"status": "ok", "tray": config_manager.get_config().tray}
+        raise HTTPException(status_code=500, detail="Failed to update tray config")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -57,6 +57,31 @@ class CalibrationData(BaseModel):
     )
 
 
+class TrayConfig(BaseModel):
+    """
+    Describes the physical SiPM tray layout.
+
+    With reference_point, first_sipm, columns, rows, and the two pitches you
+    can compute the machine coordinates of any SiPM by index (0-based):
+        col = index % columns
+        row = index // columns
+        x   = first_sipm.x + col * pitch_x
+        y   = first_sipm.y + row * pitch_y
+    """
+    reference_point: Dict[str, float] = Field(
+        default={"x": 0.0, "y": 0.0},
+        description="Tray corner reference (machine coords, set with SET REF)"
+    )
+    first_sipm: Dict[str, float] = Field(
+        default={"x": 0.0, "y": 0.0},
+        description="Machine coordinates of the first SiPM (index 0), set manually"
+    )
+    columns: int = Field(default=1, description="Number of SiPMs along X axis")
+    rows: int = Field(default=1, description="Number of SiPMs along Y axis")
+    pitch_x: float = Field(default=0.0, description="Center-to-center distance in X (mm)")
+    pitch_y: float = Field(default=0.0, description="Center-to-center distance in Y (mm)")
+
+
 class DetectionConfig(BaseModel):
     """OpenCV detection parameters for bright pad detection under colored lighting."""
     # Brightness-based detection (primary method for white/bright pads)
@@ -78,6 +103,12 @@ class DetectionConfig(BaseModel):
     expected_pad_size: int = Field(default=60, description="Expected pad size in pixels (width & height)")
     pad_size_tolerance: float = Field(default=0.4, description="Size tolerance as fraction (0.4 = ±40%, so 36-84 px)")
     max_aspect_ratio: float = Field(default=1.5, description="Max aspect ratio (1.0 = perfect square)")
+    # Center crop filter
+    # The camera is centered over the SiPM.  Pads of neighboring SiPMs will
+    # appear far from the image center.  Set to 0 to disable the filter.
+    # With pads at ±50 px (X) and ±95 px (Y) the furthest valid pad is ~107 px
+    # from center; a default of 150 px gives comfortable margin.
+    max_distance_from_center: int = Field(default=150, description="Max pixel distance from image center (0 = disabled)")
     # Debug
     save_debug_image: bool = Field(default=True, description="Save debug image with detections")
 
@@ -94,6 +125,7 @@ class StationConfig(BaseModel):
     version: str = Field(default="1.0", description="Config version")
     hardware: HardwareConfig = Field(default_factory=HardwareConfig)
     calibration: CalibrationData = Field(default_factory=CalibrationData)
+    tray: TrayConfig = Field(default_factory=TrayConfig)
     detection: DetectionConfig = Field(default_factory=DetectionConfig)
     probing: ProbingConfig = Field(default_factory=ProbingConfig)
 
@@ -115,3 +147,11 @@ class UpdatePortsRequest(BaseModel):
     """Request to update COM port settings."""
     marlin_port: Optional[str] = None
     measurement_port: Optional[str] = None
+
+
+class UpdateTrayRequest(BaseModel):
+    """Request to update tray layout parameters."""
+    columns: Optional[int] = None
+    rows: Optional[int] = None
+    pitch_x: Optional[float] = None
+    pitch_y: Optional[float] = None
