@@ -52,9 +52,9 @@ class MarlinController(HardwareDevice):
                 # Query initial position
                 self.query_position()
 
-                # Query motor currents and set Z to 200mA for new NEMA11 motor.
-                # M906 is RAM-only — not saved to EEPROM — so must be set on every connect.
-                self._configure_motor_currents()
+                # Configure replacement Z motor (current + steps/mm).
+                # RAM-only — must be applied on every connect until saved with M500.
+                self._configure_z_axis()
 
                 return True
         except Exception as e:
@@ -138,14 +138,19 @@ class MarlinController(HardwareDevice):
 
             return self.position
 
-    def move_axis(self, axis: str, distance: float, feedrate: int = 5000) -> Dict[str, float]:
+    # Default feedrates per axis (mm/min).
+    # Z uses a NEMA11 with 400 steps/mm (2mm lead screw).
+    # Z=0 is at the top (endstop); Z increases downward toward the SiPM.
+    AXIS_FEEDRATES: Dict[str, int] = {"X": 5000, "Y": 5000, "Z": 500}
+
+    def move_axis(self, axis: str, distance: float, feedrate: int = None) -> Dict[str, float]:
         """
         Move specified axis by relative distance.
 
         Args:
             axis: Axis to move ("X", "Y", or "Z")
             distance: Distance to move in mm (positive or negative)
-            feedrate: Movement speed in mm/min (default: 5000)
+            feedrate: Movement speed in mm/min. Defaults to AXIS_FEEDRATES[axis].
 
         Returns:
             Dict with new position
@@ -162,6 +167,9 @@ class MarlinController(HardwareDevice):
         axis = axis.upper()
         if axis not in ["X", "Y", "Z"]:
             raise ValueError(f"Invalid axis: {axis}. Must be X, Y, or Z.")
+
+        if feedrate is None:
+            feedrate = self.AXIS_FEEDRATES.get(axis, 5000)
 
         # Check bounds
         current_pos = self.position.get(axis, 0)
@@ -208,7 +216,7 @@ class MarlinController(HardwareDevice):
 
         return pos
 
-    def move_to_absolute(self, x: float = None, y: float = None, z: float = None, feedrate: int = 5000) -> Dict[str, float]:
+    def move_to_absolute(self, x: float = None, y: float = None, z: float = None, feedrate: int = None) -> Dict[str, float]:
         """
         Move to an absolute position (X, Y, Z).
 
@@ -225,6 +233,7 @@ class MarlinController(HardwareDevice):
             raise RuntimeError("Emergency stop is active! Clear it before moving.")
 
         cmd_parts = []
+        axes_used = []
         for axis, val in [("X", x), ("Y", y), ("Z", z)]:
             if val is None:
                 continue
@@ -235,9 +244,14 @@ class MarlinController(HardwareDevice):
                     f"Requested: {val:.1f}mm"
                 )
             cmd_parts.append(f"{axis}{val:.3f}")
+            axes_used.append(axis)
 
         if not cmd_parts:
             return self.position
+
+        # Use the slowest per-axis feedrate among the axes being moved
+        if feedrate is None:
+            feedrate = min(self.AXIS_FEEDRATES.get(a, 5000) for a in axes_used)
 
         with self.lock:
             self.send_gcode("G90")  # Absolute positioning
@@ -246,20 +260,21 @@ class MarlinController(HardwareDevice):
 
         return pos
 
-    def _configure_motor_currents(self):
+    def _configure_z_axis(self):
         """
-        Query and log motor currents (M906), then set Z to 200mA.
+        Configure the replacement Z motor (NEMA11, 24V/0.6A, 2mm lead screw).
 
-        The Z motor was replaced with a smaller NEMA11 (same as I/J axes).
-        Original Z current was 800mA; the new motor requires 200mA.
+        Applied on every connect (RAM-only, not persisted in EEPROM):
+        - M906 Z200 — motor current, same as A/B NEMA11 axes (confirmed working).
+        - M92 Z400  — steps/mm confirmed via manual Putty testing (2mm lead screw).
 
-        NOTE: M906 only sets current in RAM — it is NOT stored in EEPROM.
-              This must be called on every connect (or send M500 after to persist).
+        Z orientation: Z=0 at top (endstop/trigger), Z increases downward toward SiPM.
+        Once confirmed stable, save permanently with M500.
         """
         with self.lock:
-            # Query all motor currents
+            # Query all motor currents and log them
             self.send_gcode("M906")
-            print("Motor currents (M906 report):")
+            print("--- Motor currents (M906) ---")
             for _ in range(15):
                 line = self.read_line()
                 if not line:
@@ -268,7 +283,8 @@ class MarlinController(HardwareDevice):
                 if line.lower().startswith("ok"):
                     break
 
-            # Set Z motor current to 200mA (new NEMA11, same as I/J axes)
+            # Set Z motor current to 200mA — same as A/B axis NEMA11 motors.
+            # Light load (POGO pin contact), same motor hardware as A/B.
             self.send_gcode("M906 Z200")
             for _ in range(5):
                 line = self.read_line()
@@ -277,7 +293,19 @@ class MarlinController(HardwareDevice):
                 print(f"<< {line}")
                 if line.lower().startswith("ok"):
                     break
-            print("Z motor current set to 200mA (RAM only — applied on every connect)")
+            print("Z motor current set to 200mA")
+
+            # Set Z steps/mm — confirmed working via manual testing (M92 Z400).
+            # 2mm lead screw, NEMA11. Fine-tune later if needed.
+            self.send_gcode("M92 Z400")
+            for _ in range(5):
+                line = self.read_line()
+                if not line:
+                    continue
+                print(f"<< {line}")
+                if line.lower().startswith("ok"):
+                    break
+            print("Z steps/mm set to 400")
 
     def set_bounds(self, axis: str, min_val: float, max_val: float):
         """

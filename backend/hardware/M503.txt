@@ -1,0 +1,28 @@
+M503
+
+echo:; Linear Units:
+echo:  G21 ; (mm)
+echo:; Temperature Units:
+echo:  M149 C ; Un               its in Celsius
+echo:; Steps per unit:
+echo:  M92 X320.00 Y320.00 Z40.00 A4.44 B4.4               4
+echo:; Max feedrates (units/s):
+echo:  M203 X1500.00 Y1500.00 Z500.00 A50000.00                B50000.00
+echo:; Max Acceleration (units/s2):
+echo:  M201 X10000.00 Y10000.00 Z100               00.00 A10000 B10000
+echo:; Acceleration (units/s2) (P<print-accel> R<retract-acce               l> T<travel-accel>):
+echo:  M204 P2000.00 R3000.00 T2500.00
+echo:; Advanced (D<min               _segment_time_us> S<min_feedrate> T<min_travel_feedrate> J<junc_dev>):
+echo:  M20               5 D20000.00 S0.00 T0.00 J0.01
+echo:; Home offset:
+echo:  M206 X0.00 Y0.00 Z0.00 A0               .00 B0.00
+echo:; Stepper driver current:
+echo:  M906 X800 Y1000 Z800 A200 B200
+echo               :  M906 I1 Y1000
+echo:; Driver stepping mode:
+echo:  M569 S1 Z A B
+echo:  M569 S1                 A
+echo:  M569 S1  B
+
+SET: M204 P2400
+

@@ -13,7 +13,7 @@ class MarlinConfig(BaseModel):
         default={
             "X": {"min": 0, "max": 300},
             "Y": {"min": 0, "max": 300},
-            "Z": {"min": 40, "max": 50}
+            "Z": {"min": 0, "max": 10}
         },
         description="Movement bounds for each axis"
     )
@@ -117,7 +117,7 @@ class ProbingConfig(BaseModel):
     """Z-axis probing parameters."""
     rough_step: float = Field(default=1.0, description="Rough probing step in mm")
     fine_step: float = Field(default=0.1, description="Fine probing step in mm")
-    safe_z_min: float = Field(default=40.0, description="Safe minimum Z position in mm")
+    safe_z_min: float = Field(default=0.0, description="Safe minimum Z position in mm")
 
 
 class StationConfig(BaseModel):
