@@ -140,7 +140,7 @@ class MarlinController(HardwareDevice):
 
     # Default feedrates per axis (mm/min).
     # Z uses a NEMA11 with 400 steps/mm (2mm lead screw).
-    # Z=0 is at the top (endstop); Z increases downward toward the SiPM.
+    # Z+ = physical UP (away from SiPM); endstop at top triggers when going up.
     AXIS_FEEDRATES: Dict[str, int] = {"X": 5000, "Y": 5000, "Z": 500}
 
     def move_axis(self, axis: str, distance: float, feedrate: int = None) -> Dict[str, float]:
@@ -210,8 +210,13 @@ class MarlinController(HardwareDevice):
             raise RuntimeError("Emergency stop is active! Clear it before homing.")
 
         with self.lock:
-            self.send_gcode("G28 X Y")  # Z excluded (motor disconnected)
-            time.sleep(5)  # Wait for homing to complete
+            # Home Z first — motor coil swapped so G28 Z now correctly moves UP
+            # to the endstop at the top, clearing the head before X/Y move.
+            self.send_gcode("G28 Z")
+            time.sleep(4)
+            # Then home X and Y
+            self.send_gcode("G28 X Y")
+            time.sleep(7)  # Wait for X/Y homing to complete
             pos = self.query_position()
 
         return pos
@@ -268,7 +273,7 @@ class MarlinController(HardwareDevice):
         - M906 Z200 — motor current, same as A/B NEMA11 axes (confirmed working).
         - M92 Z400  — steps/mm confirmed via manual Putty testing (2mm lead screw).
 
-        Z orientation: Z=0 at top (endstop/trigger), Z increases downward toward SiPM.
+        Z orientation: Z+ = physical UP (toward endstop at top); Z- = toward SiPM.
         Once confirmed stable, save permanently with M500.
         """
         with self.lock:

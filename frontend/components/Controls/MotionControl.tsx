@@ -17,6 +17,7 @@ export default function MotionControl() {
   const [refPoint, setRefPoint] = useState<{ x: number; y: number; z: number } | null>(null);
   const [sipmCol, setSipmCol] = useState(0);
   const [sipmRow, setSipmRow] = useState(0);
+  const [sipmId, setSipmId] = useState(0);
 
   // Load saved reference point from config on mount
   useEffect(() => {
@@ -47,6 +48,21 @@ export default function MotionControl() {
       await move(axis, distance);
     } catch (error) {
       console.error("Move failed:", error);
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  const handleGoSipmById = async () => {
+    if (marlin.emergencyStop) {
+      alert("Emergency stop is active! Clear it first.");
+      return;
+    }
+    setMoving(true);
+    try {
+      await motionAPI.goSipm(sipmId);
+    } catch (error) {
+      alert(`Failed to go to SiPM #${sipmId}: ${error instanceof Error ? error.message : error}`);
     } finally {
       setMoving(false);
     }
@@ -232,18 +248,18 @@ export default function MotionControl() {
         </label>
         <div className="flex gap-2">
           <button
-            onClick={() => handleMove("Z", step)}
+            onClick={() => handleMove("Z", -step)}
             disabled={disabled}
             className={`${buttonClass(disabled)} flex-1`}
-            title="Move Z Up"
+            title="Move Z Up (away from SiPM)"
           >
             Z ↑
           </button>
           <button
-            onClick={() => handleMove("Z", -step)}
+            onClick={() => handleMove("Z", step)}
             disabled={disabled}
             className={`${buttonClass(disabled)} flex-1`}
-            title="Move Z Down"
+            title="Move Z Down (toward SiPM)"
           >
             Z ↓
           </button>
@@ -294,7 +310,7 @@ export default function MotionControl() {
         </div>
       )}
 
-      {/* SiPM Navigation */}
+      {/* SiPM Navigation by col/row */}
       <div className="mt-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">Go to SiPM (col, row)</label>
         <div className="flex gap-2 items-center">
@@ -317,6 +333,32 @@ export default function MotionControl() {
           />
           <button
             onClick={handleGoSipm}
+            disabled={disabled}
+            className={`flex-1 px-3 py-1 rounded font-semibold text-sm transition-colors ${
+              disabled
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700"
+            }`}
+          >
+            Go
+          </button>
+        </div>
+      </div>
+
+      {/* SiPM Navigation by ID */}
+      <div className="mt-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Go to SiPM (ID)</label>
+        <div className="flex gap-2 items-center">
+          <input
+            type="number"
+            min={0}
+            value={sipmId}
+            onChange={(e) => setSipmId(Number(e.target.value))}
+            className="w-24 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+            placeholder="id"
+          />
+          <button
+            onClick={handleGoSipmById}
             disabled={disabled}
             className={`flex-1 px-3 py-1 rounded font-semibold text-sm transition-colors ${
               disabled

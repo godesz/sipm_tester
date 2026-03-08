@@ -118,6 +118,12 @@ export const motionAPI = {
     fetchAPI(API_ENDPOINTS.MOTION_GO_REFERENCE, { method: "POST" }),
 
   /**
+   * Move to SiPM by 0-based linear index (id = col + row * columns).
+   */
+  goSipm: (index: number): Promise<{ status: string; index: number; position: { X: number; Y: number; Z: number } }> =>
+    fetchAPI(`/api/motion/go_sipm?index=${index}`, { method: "POST" }),
+
+  /**
    * Get Marlin controller status.
    */
   getStatus: (): Promise<StatusResponse> =>
