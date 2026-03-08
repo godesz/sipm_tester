@@ -34,6 +34,7 @@ class MeasurementDevice(HardwareDevice):
         super().__init__()
         self.ser: Optional[serial.Serial] = None
         self.psu_enabled = False
+        self._last_light: Optional[Dict] = None  # Last set_light args for restore
 
     def connect(self, port: str = "COM5", baudrate: int = 115200, timeout: float = 5.0) -> bool:
         """
@@ -168,9 +169,16 @@ class MeasurementDevice(HardwareDevice):
         try:
             cmd = f"set_module,0,0,0,k,{mode},{r},{g},{b}"
             response = self._send_command(cmd)
+            self._last_light = {"mode": mode, "r": r, "g": g, "b": b}
             return {"status": "ok", "response": response}
         except Exception as e:
             return {"status": "error", "message": str(e)}
+
+    def restore_light(self) -> Dict:
+        """Restore the last light setting (used after measurements that turn LEDs off)."""
+        if self._last_light is None:
+            return {"status": "ok", "message": "No previous light setting to restore"}
+        return self.set_light(**self._last_light)
 
     def turn_off_leds(self) -> Dict:
         """
@@ -221,42 +229,44 @@ class MeasurementDevice(HardwareDevice):
         """
         Parse cooler state response to extract connection state.
 
-        Args:
-            response: Response string from get_cooler_state command
+        Supported response formats:
+          - "get_cooler_state,0,OK*3,1,0,..."   → OK*X (long format)
+          - "0x03"                               → 0xXX (short hex format)
 
-        Returns:
-            Dict with parsed connection state
+        State values: 0=short, 1=ok/connected, 2=not_valid, 3=open, 0xFF=i2c_error
         """
-        # Look for OK*X pattern
+        state = None
+
+        # Format 1: OK*X  (e.g. "OK*3" or "OK*1")
         match = re.search(r"OK\*([0-9A-Fa-f]+)", response)
-
         if match:
-            state_str = match.group(1)
+            s = match.group(1)
+            state = self.CONNECTION_I2C_ERROR if s.upper() == "FF" else int(s)
 
-            # Handle hex values (like FF)
-            if state_str.upper() == "FF":
-                state = self.CONNECTION_I2C_ERROR
-            else:
-                state = int(state_str)
+        # Format 2: 0xXX  (e.g. "0x03" or "0x01")
+        if state is None:
+            match = re.search(r"0[xX]([0-9A-Fa-f]+)", response)
+            if match:
+                state = int(match.group(1), 16)
 
+        if state is not None:
             state_name = self.CONNECTION_NAMES.get(state, "unknown")
-
             return {
                 "status": "ok",
                 "connection_state": state,
                 "connection_name": state_name,
                 "raw_response": response,
-                "is_connected": (state == self.CONNECTION_OK)  # State 1 means connected
+                "is_connected": (state == self.CONNECTION_OK),
             }
-        else:
-            return {
-                "status": "error",
-                "message": "Could not parse response",
-                "connection_state": None,
-                "connection_name": "parse_error",
-                "raw_response": response,
-                "is_connected": False
-            }
+
+        return {
+            "status": "error",
+            "message": "Could not parse response",
+            "connection_state": None,
+            "connection_name": "parse_error",
+            "raw_response": response,
+            "is_connected": False,
+        }
 
     def test_connection(self) -> bool:
         """

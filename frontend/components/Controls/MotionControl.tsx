@@ -8,7 +8,8 @@
 import { useState, useEffect } from "react";
 import { useHardware } from "@/contexts/HardwareContext";
 import { MOVEMENT_STEPS } from "@/lib/constants";
-import { motionAPI, configAPI } from "@/lib/api";
+import { motionAPI, configAPI, measurementAPI } from "@/lib/api";
+import type { ProbeSipmResponse } from "@/lib/types";
 
 export default function MotionControl() {
   const { marlin, move, home } = useHardware();
@@ -18,6 +19,8 @@ export default function MotionControl() {
   const [sipmCol, setSipmCol] = useState(0);
   const [sipmRow, setSipmRow] = useState(0);
   const [sipmId, setSipmId] = useState(0);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<ProbeSipmResponse | null>(null);
 
   // Load saved reference point from config on mount
   useEffect(() => {
@@ -50,6 +53,23 @@ export default function MotionControl() {
       console.error("Move failed:", error);
     } finally {
       setMoving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    if (marlin.emergencyStop) {
+      alert("Emergency stop is active! Clear it first.");
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await measurementAPI.probeSipm(0);
+      setTestResult(result);
+    } catch (error) {
+      alert(`TEST failed: ${error instanceof Error ? error.message : error}`);
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -369,6 +389,35 @@ export default function MotionControl() {
             Go
           </button>
         </div>
+      </div>
+
+      {/* TEST Button */}
+      <div className="mt-3">
+        <button
+          onClick={handleTest}
+          disabled={disabled || testing}
+          className={`w-full px-4 py-2 rounded font-semibold transition-colors ${
+            disabled || testing
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-teal-500 text-white hover:bg-teal-600 active:bg-teal-700"
+          }`}
+          title="Detect pads, move POGO over SiPM, probe Z until contact"
+        >
+          {testing ? "⏳ Testing..." : "🔬 TEST"}
+        </button>
+        {testResult && (
+          <div className={`mt-2 p-2 rounded text-xs ${
+            testResult.status === "connected"
+              ? "bg-green-50 border border-green-200 text-green-700"
+              : "bg-red-50 border border-red-200 text-red-700"
+          }`}>
+            <div className="font-semibold">{testResult.status === "connected" ? "✓ Contact!" : "✗ " + testResult.status}</div>
+            {testResult.final_z != null && <div>Z = {testResult.final_z.toFixed(2)} mm</div>}
+            {testResult.detections != null && <div>Pads detected: {testResult.detections}</div>}
+            {testResult.steps_taken != null && <div>Steps: {testResult.steps_taken}</div>}
+            {testResult.message && <div className="mt-1 text-gray-500">{testResult.message}</div>}
+          </div>
+        )}
       </div>
 
       {/* Status Messages */}

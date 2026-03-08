@@ -21,6 +21,9 @@ set_module,0,0,0,k,2,30,30,30    JOBB
 set_module,0,0,0,k,3,30,30,30   BOTH
 
 get_cooler_state,0
+get_cooler_state,0  //reused for contact check!!!! use cooler_1_state(first param) //0x00->short 0x01->OK 0x02->not_valid 0x03->open 0xFF->i2c bus error
+get_cooler_state,0,OK*3,1,0,0.000,0.000,0.00,0.00,0.00,0.00*
+
 
 M906-tal le lehet kérni
 https://marlinfw.org/docs/gcode/M906.html

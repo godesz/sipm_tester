@@ -37,6 +37,7 @@ export const API_ENDPOINTS = {
   MEASUREMENT_TURN_OFF_LEDS: "/api/measurement/turn_off_leds",
   MEASUREMENT_TEST_DIODE: "/api/measurement/test_diode",
   MEASUREMENT_PROBE_Z: "/api/measurement/probe_z",
+  MEASUREMENT_PROBE_SIPM: "/api/measurement/probe_sipm",
   MEASUREMENT_STATUS: "/api/measurement/status",
 
   // Config endpoints

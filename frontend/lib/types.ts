@@ -109,6 +109,12 @@ export interface ProbeResponse {
   message?: string;
 }
 
+export interface ProbeSipmResponse extends ProbeResponse {
+  detections: number;
+  pogo_x?: number;
+  pogo_y?: number;
+}
+
 // ============================================================================
 // Configuration Types
 // ============================================================================

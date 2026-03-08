@@ -122,13 +122,12 @@ async def test_diode():
 
 
 @router.post("/probe_z", response_model=ProbeResponse)
-async def probe_z(request: ProbeRequest):
+def probe_z(request: ProbeRequest):
     """
     Run Z-axis probing workflow.
     Moves Z down incrementally, testing connection at each step.
     """
     try:
-        # Import marlin from motion API
         from .motion import marlin
 
         if not marlin.is_connected():
@@ -137,30 +136,51 @@ async def probe_z(request: ProbeRequest):
         if not measurement.is_connected():
             raise HTTPException(status_code=400, detail="Measurement device not connected")
 
-        # Get probing parameters
-        probing_config = config_manager.get_probing_params()
+        cfg = config_manager.get_config()
+        probing_cfg = cfg.probing
 
-        # Use config values if not provided in request
-        rough_step = request.rough_step or probing_config.rough_step
-        fine_step = request.fine_step or probing_config.fine_step
-        safe_z_min = request.safe_z_min or probing_config.safe_z_min
-
-        # Get start Z position (current if not provided)
         start_z = request.start_z
         if start_z is None:
-            current_pos = marlin.query_position()
-            start_z = current_pos.get("Z", 0)
+            start_z = marlin.query_position().get("Z", probing_cfg.probe_start_z)
 
-        # Run probing
+        step = request.rough_step or probing_cfg.probe_step
+
         prober = probing.ZAxisProber(marlin, measurement)
-        result = await prober.probe_to_contact(
+        result = prober.probe_to_contact(
             start_z=start_z,
-            rough_step=rough_step,
-            fine_step=fine_step,
-            safe_min=safe_z_min
+            step=step,
+            max_z=probing_cfg.max_probe_z,
         )
 
         return ProbeResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/probe_sipm")
+def probe_sipm(camera_id: int = 0):
+    """
+    Full SiPM test workflow: detect pads → apply pogo offset → probe Z until contact.
+    """
+    try:
+        from .motion import marlin
+        from .camera import camera
+
+        if not marlin.is_connected():
+            raise HTTPException(status_code=400, detail="Marlin not connected")
+
+        if not measurement.is_connected():
+            raise HTTPException(status_code=400, detail="Measurement device not connected")
+
+        prober = probing.ZAxisProber(marlin, measurement)
+        result = prober.probe_sipm(camera, camera_id)
+
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message", "Probing failed"))
+
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

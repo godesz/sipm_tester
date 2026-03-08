@@ -209,7 +209,7 @@ class CameraManager(HardwareDevice):
     def gen_frames(self, camera_id: int = 0):
         """
         Generator for MJPEG streaming with thread safety.
-        Gracefully handles camera being closed during streaming.
+        Automatically recovers if the camera is temporarily closed (e.g. during detection).
 
         Args:
             camera_id: Camera index (default: 0)
@@ -217,26 +217,31 @@ class CameraManager(HardwareDevice):
         Yields:
             MJPEG frame bytes
         """
+        import time as _time
+
         try:
-            cam = self.open_camera(camera_id, high_res=False)
+            self.open_camera(camera_id, high_res=False)
         except RuntimeError as e:
             print(f"Failed to open camera {camera_id}: {e}")
             return
 
         while True:
-            # Camera might be closed by another operation
+            # Camera might have been closed by a detection/capture operation
             if camera_id not in self.cameras:
-                print(f"Camera {camera_id} was closed, stopping stream")
-                break
+                _time.sleep(0.2)  # Wait for detection to finish and release camera
+                try:
+                    self.open_camera(camera_id, high_res=False)
+                except RuntimeError:
+                    pass  # Still busy — retry next iteration
+                continue
 
             if camera_id in self.camera_locks:
                 with self.camera_locks[camera_id]:
-                    # Check again inside lock
                     if camera_id not in self.cameras or not self.cameras[camera_id].isOpened():
-                        break
+                        continue
                     success, frame = self.cameras[camera_id].read()
             else:
-                break
+                continue
 
             if not success:
                 continue

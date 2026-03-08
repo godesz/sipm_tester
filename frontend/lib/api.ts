@@ -14,6 +14,7 @@ import type {
   DetectionResponse,
   ProbeRequest,
   ProbeResponse,
+  ProbeSipmResponse,
   StationConfig,
   SetReferencePointRequest,
   SetCameraOffsetRequest,
@@ -235,6 +236,14 @@ export const measurementAPI = {
     fetchAPI(API_ENDPOINTS.MEASUREMENT_PROBE_Z, {
       method: "POST",
       body: JSON.stringify(request),
+    }),
+
+  /**
+   * Full SiPM test: detect pads → apply pogo offset → probe Z until contact.
+   */
+  probeSipm: (cameraId: number = 0): Promise<ProbeSipmResponse> =>
+    fetchAPI(`${API_ENDPOINTS.MEASUREMENT_PROBE_SIPM}?camera_id=${cameraId}`, {
+      method: "POST",
     }),
 
   /**
