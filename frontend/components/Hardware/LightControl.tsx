@@ -1,16 +1,25 @@
 "use client";
 
 /**
- * LightControl - Controls Hardware 3 RGB LED lights.
- * Provides mode selector (left/right/all) and RGB sliders.
+ * LightControl - Controls RGB LED lights.
+ * Supports both direct COM (measurement device) and external API service.
  */
 
 import React, { useState } from "react";
 import { useHardware } from "@/contexts/HardwareContext";
 import { LIGHT_MODES, LIGHT_MODE_NAMES } from "@/lib/constants";
+import { extMeasurementAPI } from "@/lib/api";
+import type { LedMode } from "@/lib/types";
+
+/** Map our 1/2/3 mode to the external service's LedMode string. */
+function toExtMode(mode: 1 | 2 | 3): LedMode {
+  if (mode === 1) return "Left";
+  if (mode === 2) return "Right";
+  return "Both";
+}
 
 export default function LightControl() {
-  const { measurement, setLight, turnOffLEDs } = useHardware();
+  const { measurement, measurementMode, setMeasurementMode, setLight, turnOffLEDs } = useHardware();
 
   const [mode, setMode] = useState<1 | 2 | 3>(LIGHT_MODES.ALL);
   const [r, setR] = useState(255);
@@ -18,46 +27,85 @@ export default function LightControl() {
   const [b, setB] = useState(255);
   const [applying, setApplying] = useState(false);
 
+  const isApi = measurementMode === "api";
+  // In API mode the direct connection is not needed
+  const canOperate = isApi || measurement.connected;
+
   const handleApply = async () => {
-    if (!measurement.connected) {
-      alert("Measurement device not connected!");
+    if (!canOperate) {
+      alert(isApi ? "External service not configured." : "Measurement device not connected!");
       return;
     }
-
     setApplying(true);
     try {
-      await setLight(mode, r, g, b);
+      if (isApi) {
+        await extMeasurementAPI.setLed(toExtMode(mode), r, g, b);
+      } else {
+        await setLight(mode, r, g, b);
+      }
     } catch (error) {
       console.error("Set light failed:", error);
+      alert(`Set light failed: ${error instanceof Error ? error.message : error}`);
     } finally {
       setApplying(false);
     }
   };
 
   const handleTurnOff = async () => {
-    if (!measurement.connected) {
-      alert("Measurement device not connected!");
+    if (!canOperate) {
+      alert(isApi ? "External service not configured." : "Measurement device not connected!");
       return;
     }
-
     setApplying(true);
     try {
-      await turnOffLEDs();
+      if (isApi) {
+        await extMeasurementAPI.ledOff();
+      } else {
+        await turnOffLEDs();
+      }
     } catch (error) {
       console.error("Turn off LEDs failed:", error);
+      alert(`Turn off failed: ${error instanceof Error ? error.message : error}`);
     } finally {
       setApplying(false);
     }
   };
 
-  // Color preview
   const previewColor = `rgb(${r}, ${g}, ${b})`;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
-      <h3 className="text-lg font-bold mb-4">Light Control</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-bold">Light Control</h3>
+        {/* Mode Toggle */}
+        <div className="flex items-center gap-1 bg-gray-100 rounded p-0.5">
+          <button
+            onClick={() => setMeasurementMode("direct")}
+            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+              !isApi ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Direct
+          </button>
+          <button
+            onClick={() => setMeasurementMode("api")}
+            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+              isApi ? "bg-purple-500 text-white" : "text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            API
+          </button>
+        </div>
+      </div>
 
-      {/* Mode Selector */}
+      {/* Mode indicator */}
+      {isApi && (
+        <div className="mb-3 px-2 py-1 bg-purple-50 border border-purple-200 rounded text-xs text-purple-700">
+          Using external service (localhost:8003)
+        </div>
+      )}
+
+      {/* LED Mode Selector */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           LED Mode
@@ -85,31 +133,14 @@ export default function LightControl() {
 
       {/* RGB Sliders */}
       <div className="space-y-3 mb-4">
-        <ColorSlider
-          label="Red"
-          value={r}
-          onChange={setR}
-          color="red"
-        />
-        <ColorSlider
-          label="Green"
-          value={g}
-          onChange={setG}
-          color="green"
-        />
-        <ColorSlider
-          label="Blue"
-          value={b}
-          onChange={setB}
-          color="blue"
-        />
+        <ColorSlider label="Red"   value={r} onChange={setR} color="red"   />
+        <ColorSlider label="Green" value={g} onChange={setG} color="green" />
+        <ColorSlider label="Blue"  value={b} onChange={setB} color="blue"  />
       </div>
 
       {/* Color Preview */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Preview
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Preview</label>
         <div
           className="w-full h-12 rounded border-2 border-gray-300"
           style={{ backgroundColor: previewColor }}
@@ -123,9 +154,9 @@ export default function LightControl() {
       <div className="space-y-2">
         <button
           onClick={handleApply}
-          disabled={!measurement.connected || applying}
+          disabled={!canOperate || applying}
           className={`w-full px-4 py-2 rounded font-medium transition-colors ${
-            measurement.connected && !applying
+            canOperate && !applying
               ? "bg-green-500 text-white hover:bg-green-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
@@ -135,9 +166,9 @@ export default function LightControl() {
 
         <button
           onClick={handleTurnOff}
-          disabled={!measurement.connected || applying}
+          disabled={!canOperate || applying}
           className={`w-full px-4 py-2 rounded font-medium transition-colors ${
-            measurement.connected && !applying
+            canOperate && !applying
               ? "bg-red-500 text-white hover:bg-red-600"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}
@@ -146,69 +177,36 @@ export default function LightControl() {
         </button>
       </div>
 
-      {/* Status Message */}
-      {!measurement.connected && (
+      {/* Status Messages */}
+      {!isApi && !measurement.connected && (
         <div className="mt-3 p-2 bg-yellow-100 text-yellow-700 text-sm rounded">
           ℹ️ Connect measurement device first
         </div>
       )}
 
-      {/* Preset Buttons */}
+      {/* Quick Presets */}
       <div className="mt-4 pt-4 border-t">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Quick Presets
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Quick Presets</label>
         <div className="grid grid-cols-3 gap-2">
-          <PresetButton
-            label="White"
-            onClick={() => { setR(255); setG(255); setB(255); }}
-          />
-          <PresetButton
-            label="Red"
-            onClick={() => { setR(255); setG(0); setB(0); }}
-          />
-          <PresetButton
-            label="Green"
-            onClick={() => { setR(0); setG(255); setB(0); }}
-          />
-          <PresetButton
-            label="Blue"
-            onClick={() => { setR(0); setG(0); setB(255); }}
-          />
-          <PresetButton
-            label="Yellow"
-            onClick={() => { setR(255); setG(255); setB(0); }}
-          />
-          <PresetButton
-            label="Off"
-            onClick={() => { setR(0); setG(0); setB(0); }}
-          />
+          <PresetButton label="White"  onClick={() => { setR(255); setG(255); setB(255); }} />
+          <PresetButton label="Red"    onClick={() => { setR(255); setG(0);   setB(0);   }} />
+          <PresetButton label="Green"  onClick={() => { setR(0);   setG(255); setB(0);   }} />
+          <PresetButton label="Blue"   onClick={() => { setR(0);   setG(0);   setB(255); }} />
+          <PresetButton label="Yellow" onClick={() => { setR(255); setG(255); setB(0);   }} />
+          <PresetButton label="Off"    onClick={() => { setR(0);   setG(0);   setB(0);   }} />
         </div>
       </div>
     </div>
   );
 }
 
-/**
- * Color slider component
- */
-function ColorSlider({
-  label,
-  value,
-  onChange,
-  color,
-}: {
+function ColorSlider({ label, value, onChange, color }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   color: "red" | "green" | "blue";
 }) {
-  const colorClass = {
-    red: "accent-red-500",
-    green: "accent-green-500",
-    blue: "accent-blue-500",
-  }[color];
-
+  const colorClass = { red: "accent-red-500", green: "accent-green-500", blue: "accent-blue-500" }[color];
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
@@ -216,10 +214,7 @@ function ColorSlider({
         <span className="text-sm text-gray-600 font-mono">{value}</span>
       </div>
       <input
-        type="range"
-        min="0"
-        max="255"
-        value={value}
+        type="range" min="0" max="255" value={value}
         onChange={(e) => onChange(parseInt(e.target.value))}
         className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${colorClass}`}
       />
@@ -227,16 +222,7 @@ function ColorSlider({
   );
 }
 
-/**
- * Preset button component
- */
-function PresetButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
+function PresetButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}

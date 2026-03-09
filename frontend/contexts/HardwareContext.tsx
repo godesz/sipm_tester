@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { api } from "@/lib/api";
 import { POLLING_INTERVALS } from "@/lib/constants";
-import type { Position, ConnectionState, SiPMDetection } from "@/lib/types";
+import type { Position, ConnectionState, SiPMDetection, MeasurementMode } from "@/lib/types";
 
 // ============================================================================
 // Context Types
@@ -60,6 +60,10 @@ interface HardwareContextType {
   detectSiPMs: () => Promise<void>;
   clearDetections: () => void;
 
+  // Measurement mode (direct COM vs external API service)
+  measurementMode: MeasurementMode;
+  setMeasurementMode: (mode: MeasurementMode) => void;
+
   // Measurement device actions
   connectMeasurement: (port: string, baudrate?: number) => Promise<void>;
   disconnectMeasurement: () => Promise<void>;
@@ -99,6 +103,9 @@ export function HardwareProvider({ children }: { children: React.ReactNode }) {
     detecting: false,
     error: null as string | null,
   });
+
+  // Measurement mode
+  const [measurementMode, setMeasurementMode] = useState<MeasurementMode>("direct");
 
   // Measurement device state
   const [measurement, setMeasurement] = useState({
@@ -385,6 +392,8 @@ export function HardwareProvider({ children }: { children: React.ReactNode }) {
     marlin,
     camera,
     measurement,
+    measurementMode,
+    setMeasurementMode,
     connectMarlin,
     disconnectMarlin,
     move,

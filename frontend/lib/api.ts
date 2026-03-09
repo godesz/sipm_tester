@@ -20,6 +20,10 @@ import type {
   SetCameraOffsetRequest,
   UpdatePortsRequest,
   StatusResponse,
+  ContactStatusResult,
+  LedMode,
+  LedState,
+  DevComStatus,
 } from "./types";
 
 // ============================================================================
@@ -305,6 +309,39 @@ export const configAPI = {
 };
 
 // ============================================================================
+// External Measurement Service API (proxied through backend)
+// ============================================================================
+
+export const extMeasurementAPI = {
+  getLedState: (): Promise<LedState> =>
+    fetchAPI("/api/ext/led/state"),
+
+  ledOn: (): Promise<LedState> =>
+    fetchAPI("/api/ext/led/on", { method: "POST" }),
+
+  ledOff: (): Promise<LedState> =>
+    fetchAPI("/api/ext/led/off", { method: "POST" }),
+
+  setLed: (mode: LedMode, r: number, g: number, b: number): Promise<LedState> =>
+    fetchAPI("/api/ext/led/set", {
+      method: "POST",
+      body: JSON.stringify({ mode, r, g, b }),
+    }),
+
+  getContactStatus: (): Promise<ContactStatusResult> =>
+    fetchAPI("/api/ext/contact/status"),
+
+  startContactAuto: (): Promise<unknown> =>
+    fetchAPI("/api/ext/contact/auto/start", { method: "POST" }),
+
+  stopContactAuto: (): Promise<unknown> =>
+    fetchAPI("/api/ext/contact/auto/stop", { method: "POST" }),
+
+  getDevcomStatus: (): Promise<DevComStatus> =>
+    fetchAPI("/api/ext/devcom/status"),
+};
+
+// ============================================================================
 // Export combined API object
 // ============================================================================
 
@@ -313,6 +350,7 @@ export const api = {
   camera: cameraAPI,
   measurement: measurementAPI,
   config: configAPI,
+  ext: extMeasurementAPI,
 };
 
 export default api;

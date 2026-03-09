@@ -123,6 +123,11 @@ class ProbingConfig(BaseModel):
     max_probe_z: float = Field(default=80.0, description="Maximum Z depth during probing (stop if reached without contact)")
 
 
+class ExternalServiceConfig(BaseModel):
+    """External measurement service configuration."""
+    url: str = Field(default="http://localhost:8003", description="Base URL of the external measurement service")
+
+
 class StationConfig(BaseModel):
     """Complete station configuration."""
     version: str = Field(default="1.0", description="Config version")
@@ -131,6 +136,7 @@ class StationConfig(BaseModel):
     tray: TrayConfig = Field(default_factory=TrayConfig)
     detection: DetectionConfig = Field(default_factory=DetectionConfig)
     probing: ProbingConfig = Field(default_factory=ProbingConfig)
+    external_service: ExternalServiceConfig = Field(default_factory=ExternalServiceConfig)
 
 
 class SetReferencePointRequest(BaseModel):

@@ -116,6 +116,36 @@ export interface ProbeSipmResponse extends ProbeResponse {
 }
 
 // ============================================================================
+// External Measurement Service Types
+// ============================================================================
+
+export type MeasurementMode = "direct" | "api";
+
+export type ContactStatus = "Unknown" | "Contact" | "OpenCircuit" | "ShortCircuit" | "IicBusError";
+
+export interface ContactStatusResult {
+  status: ContactStatus;
+  statusLabel: string;
+  rawResponse: string;
+  timestamp: string;
+}
+
+export type LedMode = "Off" | "Left" | "Right" | "Both";
+
+export interface LedState {
+  isOn: boolean;
+  mode: LedMode;
+  r: number;
+  g: number;
+  b: number;
+}
+
+export interface DevComStatus {
+  connected: boolean;
+  autoRunning: boolean;
+}
+
+// ============================================================================
 // Configuration Types
 // ============================================================================
 

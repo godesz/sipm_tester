@@ -4,7 +4,7 @@ Main application entry point.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api import motion, camera, measurement, config
+from api import motion, camera, measurement, config, ext_measurement
 
 
 # Create FastAPI app
@@ -28,6 +28,7 @@ app.include_router(motion.router)
 app.include_router(camera.router)
 app.include_router(measurement.router)
 app.include_router(config.router)
+app.include_router(ext_measurement.router)
 
 
 @app.get("/")
