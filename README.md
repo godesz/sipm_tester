@@ -3,7 +3,9 @@ LumenPnP modified to test SiPMs in their tray, Pogo pins with diode testing. Pad
 
 
 cd backend
+python -m venv venv 
 venv\Scripts\activate
+pip install -r requirements.txt
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 cd frontend
@@ -57,6 +59,13 @@ M18 S60
 Disable the stepper inactivity timeout
 M18 S0
 
+Steps/mm: 400
+Current: 200mA
+Feedrate: 500 mm/min
+Z=0 → top (endstop), Z+ → down toward SiPM
+M92 Z400, to set the steps to 400.
+M906 Z200 to  lower the current
+Feedrate is 500
 
 
 TODO:
