@@ -8,8 +8,8 @@
 import { useState, useEffect } from "react";
 import { useHardware } from "@/contexts/HardwareContext";
 import { MOVEMENT_STEPS } from "@/lib/constants";
-import { motionAPI, configAPI, measurementAPI } from "@/lib/api";
-import type { ProbeSipmResponse } from "@/lib/types";
+import { motionAPI, configAPI } from "@/lib/api";
+import type { GoSipmResponse } from "@/lib/types";
 
 export default function MotionControl() {
   const { marlin, move, home } = useHardware();
@@ -20,7 +20,7 @@ export default function MotionControl() {
   const [sipmRow, setSipmRow] = useState(0);
   const [sipmId, setSipmId] = useState(0);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<ProbeSipmResponse | null>(null);
+  const [testResult, setTestResult] = useState<GoSipmResponse | null>(null);
 
   // Load saved reference point from config on mount
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function MotionControl() {
     setTesting(true);
     setTestResult(null);
     try {
-      const result = await measurementAPI.probeSipm(0);
+      const result = await motionAPI.goSipm(sipmId, true, 0);
       setTestResult(result);
     } catch (error) {
       alert(`TEST failed: ${error instanceof Error ? error.message : error}`);
@@ -405,17 +405,17 @@ export default function MotionControl() {
         >
           {testing ? "⏳ Testing..." : "🔬 TEST"}
         </button>
-        {testResult && (
+        {testResult && testResult.test && (
           <div className={`mt-2 p-2 rounded text-xs ${
-            testResult.status === "connected"
+            testResult.test.contact
               ? "bg-green-50 border border-green-200 text-green-700"
               : "bg-red-50 border border-red-200 text-red-700"
           }`}>
-            <div className="font-semibold">{testResult.status === "connected" ? "✓ Contact!" : "✗ " + testResult.status}</div>
-            {testResult.final_z != null && <div>Z = {testResult.final_z.toFixed(2)} mm</div>}
-            {testResult.detections != null && <div>Pads detected: {testResult.detections}</div>}
-            {testResult.steps_taken != null && <div>Steps: {testResult.steps_taken}</div>}
-            {testResult.message && <div className="mt-1 text-gray-500">{testResult.message}</div>}
+            <div className="font-semibold">{testResult.test.contact ? "✓ Contact!" : "✗ " + testResult.test.status}</div>
+            {testResult.test.final_z != null && <div>Z = {testResult.test.final_z.toFixed(2)} mm</div>}
+            <div>Pads detected: {testResult.test.detections}</div>
+            <div>Steps: {testResult.test.steps_taken}</div>
+            {testResult.test.message && <div className="mt-1 text-gray-500">{testResult.test.message}</div>}
           </div>
         )}
       </div>

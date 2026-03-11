@@ -195,19 +195,42 @@ def sipm_position(index: int):
 
 
 @router.post("/go_sipm")
-def go_sipm(index: int):
-    """Move to the machine coordinates of SiPM at the given 0-based index."""
+def go_sipm(index: int, do_test: bool = False, camera_id: int = 0):
+    """
+    Move to the machine coordinates of SiPM at the given 0-based index.
+    If do_test=True, runs full probe_sipm workflow after movement and returns results.
+    """
     try:
         if not marlin.is_connected():
             raise HTTPException(status_code=400, detail="Marlin not connected")
 
         pos = config_manager.get_sipm_position(index)
         new_pos = marlin.move_to_absolute(x=pos["x"], y=pos["y"])
-        return {"status": "ok", "index": index, "position": new_pos}
+
+        result = {"status": "ok", "index": index, "position": new_pos, "test": None}
+
+        if do_test:
+            from api.measurement import measurement
+            from api.camera import camera as cam
+            from services.probing import ZAxisProber
+
+            if not measurement.is_connected():
+                result["test"] = {"status": "error", "message": "Measurement device not connected"}
+            else:
+                prober = ZAxisProber(marlin, measurement)
+                test_result = prober.probe_sipm(cam, camera_id)
+                test_result["contact"] = test_result.get("status") == "connected"
+                result["test"] = test_result
+                result["status"] = test_result.get("status", "ok")
+
+        return result
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

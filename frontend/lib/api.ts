@@ -15,6 +15,7 @@ import type {
   ProbeRequest,
   ProbeResponse,
   ProbeSipmResponse,
+  GoSipmResponse,
   StationConfig,
   SetReferencePointRequest,
   SetCameraOffsetRequest,
@@ -124,9 +125,10 @@ export const motionAPI = {
 
   /**
    * Move to SiPM by 0-based linear index (id = col + row * columns).
+   * If doTest=true, runs the full probe_sipm workflow after movement.
    */
-  goSipm: (index: number): Promise<{ status: string; index: number; position: { X: number; Y: number; Z: number } }> =>
-    fetchAPI(`/api/motion/go_sipm?index=${index}`, { method: "POST" }),
+  goSipm: (index: number, doTest: boolean = false, cameraId: number = 0): Promise<GoSipmResponse> =>
+    fetchAPI(`/api/motion/go_sipm?index=${index}&do_test=${doTest}&camera_id=${cameraId}`, { method: "POST" }),
 
   /**
    * Get Marlin controller status.

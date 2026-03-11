@@ -115,6 +115,24 @@ export interface ProbeSipmResponse extends ProbeResponse {
   pogo_y?: number;
 }
 
+export interface GoSipmTestResult {
+  status: "connected" | "failed" | "error";
+  contact: boolean;
+  final_z: number | null;
+  detections: number;
+  steps_taken: number;
+  message: string;
+  pogo_x?: number;
+  pogo_y?: number;
+}
+
+export interface GoSipmResponse {
+  status: string;
+  index: number;
+  position: { X: number; Y: number; Z: number };
+  test: GoSipmTestResult | null;
+}
+
 // ============================================================================
 // External Measurement Service Types
 // ============================================================================
