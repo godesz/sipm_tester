@@ -118,6 +118,7 @@ class ProbingConfig(BaseModel):
     rough_step: float = Field(default=1.0, description="Rough probing step in mm")
     fine_step: float = Field(default=0.1, description="Fine probing step in mm")
     safe_z_min: float = Field(default=0.0, description="Safe minimum Z position in mm")
+    safe_travel_z: float = Field(default=10.0, description="Z position to retract to before XY travel (small Z = physically high = safe)")
     probe_start_z: float = Field(default=53.0, description="Z position to start probing from (safe height above SiPM surface)")
     probe_step: float = Field(default=0.5, description="Step size for probe_sipm workflow in mm")
     max_probe_z: float = Field(default=80.0, description="Maximum Z depth during probing (stop if reached without contact)")

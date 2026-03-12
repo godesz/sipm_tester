@@ -201,6 +201,11 @@ def go_sipm(index: int, do_test: bool = False, camera_id: int = 0):
         if not marlin.is_connected():
             raise HTTPException(status_code=400, detail="Marlin not connected")
 
+        # Retract Z to safe travel height before XY movement
+        safe_z = config_manager.get_config().probing.safe_travel_z
+        if marlin.position.get("Z", 0.0) > safe_z:
+            marlin.move_to_absolute(z=safe_z)
+
         pos = config_manager.get_sipm_position(index)
         new_pos = marlin.move_to_absolute(x=pos["x"], y=pos["y"])
 
@@ -214,6 +219,7 @@ def go_sipm(index: int, do_test: bool = False, camera_id: int = 0):
             if not measurement.is_connected():
                 result["test"] = {"status": "error", "message": "Measurement device not connected"}
             else:
+                measurement.restore_light()  # Ensure lights are on before camera detection
                 prober = ZAxisProber(marlin, measurement)
                 test_result = prober.probe_sipm(cam, camera_id)
                 test_result["contact"] = test_result.get("status") == "connected"
