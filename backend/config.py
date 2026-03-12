@@ -211,12 +211,18 @@ class ConfigManager:
             return False
 
     def set_first_sipm(self, x: float, y: float) -> bool:
-        """Save machine coordinates of the first SiPM (index 0)."""
+        """
+        Save the first SiPM position as an offset from the calibration reference point.
+        The caller passes the absolute machine position; the relative offset is computed here.
+        """
         try:
             with self.access_lock:
-                self.config.tray.first_sipm = {"x": x, "y": y}
+                ref = self.config.calibration.reference_point
+                offset_x = x - ref["x"]
+                offset_y = y - ref["y"]
+                self.config.tray.first_sipm = {"x": offset_x, "y": offset_y}
                 self.save()
-                print(f"First SiPM set to X={x}, Y={y}")
+                print(f"First SiPM offset set to dX={offset_x:.3f}, dY={offset_y:.3f} (from ref X={ref['x']}, Y={ref['y']})")
                 return True
         except Exception as e:
             print(f"Error setting first SiPM: {e}")
@@ -224,7 +230,9 @@ class ConfigManager:
 
     def get_sipm_position(self, index: int) -> dict:
         """
-        Compute machine coordinates for SiPM at the given 0-based index.
+        Compute absolute machine coordinates for SiPM at the given 0-based index.
+        first_sipm is stored as an offset from calibration.reference_point, so
+        moving the tray and updating the reference point automatically shifts all SiPMs.
         Layout: row-major order, X varies first (columns), then Y (rows).
         """
         with self.access_lock:
@@ -235,10 +243,11 @@ class ConfigManager:
                     f"SiPM index {index} out of range "
                     f"(tray has {tray.columns}×{tray.rows} = {total} SiPMs)"
                 )
+            ref = self.config.calibration.reference_point
             col = index % tray.columns
             row = index // tray.columns
-            x = tray.first_sipm["x"] + col * tray.pitch_x
-            y = tray.first_sipm["y"] + row * tray.pitch_y
+            x = ref["x"] + tray.first_sipm["x"] + col * tray.pitch_x
+            y = ref["y"] + tray.first_sipm["y"] + row * tray.pitch_y
             return {"index": index, "row": row, "col": col, "x": x, "y": y}
 
     def get_marlin_bounds(self):

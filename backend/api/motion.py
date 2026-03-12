@@ -169,9 +169,6 @@ def set_first_sipm():
 
         pos = marlin.position
         config_manager.set_first_sipm(pos["X"], pos["Y"])
-        # Keep tray reference_point in sync with the machine reference
-        ref = config_manager.get_config().calibration.reference_point
-        config_manager.set_tray_reference(ref["x"], ref["y"])
         result = {"x": pos["X"], "y": pos["Y"]}
         print(f"First SiPM saved: {result}")
         return {"status": "ok", "first_sipm": result}
