@@ -22,9 +22,9 @@ export default function LightControl() {
   const { measurement, measurementMode, setMeasurementMode, setLight, turnOffLEDs } = useHardware();
 
   const [mode, setMode] = useState<1 | 2 | 3>(LIGHT_MODES.ALL);
-  const [r, setR] = useState(255);
-  const [g, setG] = useState(255);
-  const [b, setB] = useState(255);
+  const [r, setR] = useState(() => Math.floor(Math.random() * 256));
+  const [g, setG] = useState(() => Math.floor(Math.random() * 256));
+  const [b, setB] = useState(() => Math.floor(Math.random() * 256));
   const [applying, setApplying] = useState(false);
 
   const isApi = measurementMode === "api";
@@ -206,7 +206,8 @@ function ColorSlider({ label, value, onChange, color }: {
   onChange: (value: number) => void;
   color: "red" | "green" | "blue";
 }) {
-  const colorClass = { red: "accent-red-500", green: "accent-green-500", blue: "accent-blue-500" }[color];
+  const thumbClass = { red: "accent-red-500", green: "accent-green-500", blue: "accent-blue-500" }[color];
+  const trackClass = { red: "bg-red-100", green: "bg-green-100", blue: "bg-blue-100" }[color];
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
@@ -216,7 +217,13 @@ function ColorSlider({ label, value, onChange, color }: {
       <input
         type="range" min="0" max="255" value={value}
         onChange={(e) => onChange(parseInt(e.target.value))}
-        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${colorClass}`}
+        className={[
+          "w-full h-3 rounded-lg cursor-pointer appearance-none",
+          thumbClass,
+          trackClass,
+          "[&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:border [&::-webkit-slider-runnable-track]:border-gray-300",
+          "[&::-moz-range-track]:rounded-full [&::-moz-range-track]:border [&::-moz-range-track]:border-gray-300",
+        ].join(" ")}
       />
     </div>
   );
