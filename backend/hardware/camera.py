@@ -3,12 +3,16 @@ Camera management using OpenCV.
 Migrated and improved from old_backend.py lines 106-178.
 """
 import cv2
+import platform
 import threading
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 import os
 import numpy as np
 from .base import HardwareDevice
+
+# Select correct capture backend for the platform
+CAMERA_BACKEND = CAMERA_BACKEND if platform.system() == "Windows" else cv2.CAP_V4L2
 
 
 class CameraManager(HardwareDevice):
@@ -121,7 +125,7 @@ class CameraManager(HardwareDevice):
 
             # Try to open camera to check availability
             try:
-                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                cap = cv2.VideoCapture(i, CAMERA_BACKEND)
                 if cap is not None and cap.isOpened():
                     available.append(i)
                     cap.release()
@@ -158,8 +162,7 @@ class CameraManager(HardwareDevice):
             print(f"Camera {camera_id} switching from {current_mode} to {target_mode} mode")
             self.close_camera(camera_id)
 
-        # Open camera with DirectShow backend
-        cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(camera_id, CAMERA_BACKEND)
         if not cap.isOpened():
             raise RuntimeError(f"Camera {camera_id} not available")
 
