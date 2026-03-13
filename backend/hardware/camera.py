@@ -12,7 +12,7 @@ import numpy as np
 from .base import HardwareDevice
 
 # Select correct capture backend for the platform
-CAMERA_BACKEND = CAMERA_BACKEND if platform.system() == "Windows" else cv2.CAP_V4L2
+CAMERA_BACKEND = cv2.CAP_DSHOW if platform.system() == "Windows" else cv2.CAP_V4L2
 
 
 class CameraManager(HardwareDevice):

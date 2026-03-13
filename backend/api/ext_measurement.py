@@ -14,7 +14,7 @@ import requests as _requests
 from config import config_manager
 
 
-router = APIRouter(prefix="/api/ext", tags=["external-measurement"])
+router = APIRouter(prefix="/api", tags=["external-measurement"])
 
 
 # ---------------------------------------------------------------------------

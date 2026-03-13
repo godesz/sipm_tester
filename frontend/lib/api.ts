@@ -316,31 +316,31 @@ export const configAPI = {
 
 export const extMeasurementAPI = {
   getLedState: (): Promise<LedState> =>
-    fetchAPI("/api/ext/led/state"),
+    fetchAPI("/api/led/state"),
 
   ledOn: (): Promise<LedState> =>
-    fetchAPI("/api/ext/led/on", { method: "POST" }),
+    fetchAPI("/api/led/on", { method: "POST" }),
 
   ledOff: (): Promise<LedState> =>
-    fetchAPI("/api/ext/led/off", { method: "POST" }),
+    fetchAPI("/api/led/off", { method: "POST" }),
 
   setLed: (mode: LedMode, r: number, g: number, b: number): Promise<LedState> =>
-    fetchAPI("/api/ext/led/set", {
+    fetchAPI("/api/led/set", {
       method: "POST",
       body: JSON.stringify({ mode, r, g, b }),
     }),
 
   getContactStatus: (): Promise<ContactStatusResult> =>
-    fetchAPI("/api/ext/contact/status"),
+    fetchAPI("/api/contact/status"),
 
   startContactAuto: (): Promise<unknown> =>
-    fetchAPI("/api/ext/contact/auto/start", { method: "POST" }),
+    fetchAPI("/api/contact/auto/start", { method: "POST" }),
 
   stopContactAuto: (): Promise<unknown> =>
-    fetchAPI("/api/ext/contact/auto/stop", { method: "POST" }),
+    fetchAPI("/api/contact/auto/stop", { method: "POST" }),
 
   getDevcomStatus: (): Promise<DevComStatus> =>
-    fetchAPI("/api/ext/devcom/status"),
+    fetchAPI("/api/devcom/status"),
 };
 
 // ============================================================================
