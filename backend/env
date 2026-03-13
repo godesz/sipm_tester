@@ -1,0 +1,12 @@
+# Backend environment variables (currently informational — values are in station_config.json)
+# Rename this file to .env if you add python-dotenv support later.
+#
+# The backend binds to 0.0.0.0:8000 by default (set in main.py).
+# The external measurement service URL is configured in config/station_config.json
+# under external_service.url (default: http://localhost:8003).
+#
+# Nothing required here for basic operation.
+# Add keys below if you introduce python-dotenv in the future.
+
+# BACKEND_PORT=8000
+# EXTERNAL_SERVICE_URL=http://localhost:8003
